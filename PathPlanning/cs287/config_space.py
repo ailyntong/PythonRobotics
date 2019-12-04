@@ -19,36 +19,28 @@ class ConfigurationSpace:
         self.ymax = ymax
         self.obstacles = obstacles
 
-    def make_start(self, pad):
+    def make_start(self, pad=0):
         while True:
             x = (random.random() * (self.xmax - self.xmin)) + self.xmin
             y = (random.random() * (self.ymax - self.ymin)) + self.ymin
             if not self.collides(x, y, pad):
                 return x, y
 
-    def make_goal(self, pad):
+    def make_goal(self, pad=0):
         return self.make_start(pad)
 
-    def collides(self, x, y, pad):
+    def make_node(self):
+        x = random.uniform(self.xmin, self.xmax)
+        y = random.uniform(self.ymin, self.ymax)
+        return x, y
+
+    def collides(self, x, y, pad=0):
         for ox, oy, r in self.obstacles:
             if self.manhattan_distance(x, y, ox, oy) <= r + pad:
                 return True
         return False
 
-    # def edge_collides(self, x1, y1, x2, y2, pad):
-    #     a = y1 - y2
-    #     b = x2 - x1
-    #     c = (x1 - x2) * y1 + x1 * (y2 - y1)
-
-    #     for ox, oy, r in self.obstacles:
-    #         dist = abs(a * ox + b * oy + c) / math.sqrt(a**2 + b**2)
-    #         if dist <= r + pad:
-    #             print(a, b, c, dist)
-    #             print(ox, oy, r)
-    #             return True
-    #     return False
-
-    def edge_collides(self, x1, y1, x2, y2, pad):
+    def edge_collides(self, x1, y1, x2, y2, pad=0):
         for cx, cy, r in self.obstacles:
             ax = x1 - cx
             ay = y1 - cy
@@ -106,7 +98,22 @@ def generate_random_cspace(num_obstacles=10,
                            ymin=DEFAULT_YMIN, ymax=DEFAULT_YMAX, 
                            rmin=5.0, rmax=10.0):
     obstacles = generate_obstacles(num_obstacles, xmin, xmax, ymin, ymax, rmin, rmax)
-    c = ConfigurationSpace(obstacles=obstacles)
-    # c.display()
-    # plt.show()
+    c = ConfigurationSpace(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, obstacles=obstacles)
     return c
+
+def generate_random_params(rr=0.0, num_obstacles=10,
+                           xmin=DEFAULT_XMIN, xmax=DEFAULT_XMAX, 
+                           ymin=DEFAULT_YMIN, ymax=DEFAULT_YMAX, 
+                           rmin=5.0, rmax=10.0):
+    cspace = generate_random_cspace(num_obstacles, xmin, xmax, ymin, ymax, rmin, rmax)
+    sx, sy = cspace.make_start(rr)
+    gx, gy = cspace.make_goal(rr)
+
+    return cspace, sx, sy, gx, gy, rr
+
+def generate_params(obstacles, sx, sy, gx, gy, rr,
+                    xmin=DEFAULT_XMIN, xmax=DEFAULT_XMAX, 
+                    ymin=DEFAULT_YMIN, ymax=DEFAULT_YMAX):
+    cspace = ConfigurationSpace(xmin, xmax, ymin, ymax, obstacles)
+    assert not cspace.collides(sx, sy, rr) and not cspace.collides(gx, gy, rr)
+    return cspace, sx, sy, gx, gy, rr

@@ -1,0 +1,19 @@
+rr = 0.5
+
+Circle path as described in LaValle book:
+obstacles = [(30, 35, 28),
+                 (0, 0, 15),
+                 (60, 0, 15)]
+params = generate_params(obstacles, 0, 60, 60, 60, rr)
+
+Spiral path from original code:
+obstacles = [
+     (20, 20, 4),
+     (12, 24, 8),
+     (12, 32, 8),
+     (12, 40, 8),
+     (28, 20, 8),
+     (36, 20, 8),
+     (32, 40, 4)
+] 
+params = generate_params(obstacles, 20, 10, 23, 30, rr)

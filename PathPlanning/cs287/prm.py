@@ -17,7 +17,7 @@ except ImportError:
 # parameters
 N_SAMPLES = 500
 N_KNN = 10
-MAX_NEIGHBOR_DIST = 30.0
+MAX_NEIGHBOR_DIST = 20.0
 
 show_animation = True
 
@@ -54,16 +54,58 @@ class KDTree:
         return self.tree.query_ball_point(point, r)
 
 class PRM:
-    def __init__(self, cspace, start_x, start_y, goal_x, goal_y, robot_radius):
+    def __init__(self, cspace, start_x, start_y, goal_x, goal_y, robot_radius, nsamples=N_SAMPLES):
         self.cspace = cspace
         self.sx = start_x
         self.sy = start_y
         self.gx = goal_x
         self.gy = goal_y
         self.rr = robot_radius
+        self.nsamples=nsamples
 
-    def plan(self):
-        sample_x, sample_y = self.sample_points()
+    def plan_iter(self, num_init_samples=100, inc=20, limit=2000, show_animation=False):
+        num_samples = num_init_samples
+        sample_x, sample_y = self.sample_points(num_init_samples - inc)
+        valid_x, valid_y = self.filter_samples(sample_x, sample_y)
+        while True:
+            # print(num_samples)
+            new_sample_x, new_sample_y = self.sample_points(inc)
+            new_valid_x, new_valid_y = self.filter_samples(new_sample_x, new_sample_y)
+
+            sample_x.extend(new_sample_x)
+            sample_y.extend(new_sample_y)
+            valid_x.extend(new_valid_x)
+            valid_y.extend(new_valid_y)
+
+            if show_animation:
+                plt.clf()
+                self.cspace.display()
+                plt.plot(self.sx, self.sy, '^r')
+                plt.plot(self.gx, self.gy, '^c')
+                plt.plot(sample_x, sample_y, '.b')
+                plt.plot(valid_x, valid_y, '.k')
+
+            roadmap = self.generate_roadmap(valid_x, valid_y)
+            rx, ry = self.dijkstra_planning(roadmap, valid_x, valid_y)
+
+            if rx:
+                break
+            elif num_samples >= limit:
+                if show_animation:
+                    plt.show()
+                return -1
+
+            num_samples += inc
+
+        # print('needed {} samples'.format(num_samples))
+        if show_animation:
+            plt.plot(rx, ry, "-r")
+            plt.show()
+        return num_samples
+            
+
+    def plan(self, show_animation=show_animation):
+        sample_x, sample_y = self.sample_points(self.nsamples)
         valid_x, valid_y = self.filter_samples(sample_x, sample_y)
 
         if show_animation:
@@ -86,16 +128,17 @@ class PRM:
 
         if show_animation:
             plt.plot(rx, ry, "-r")
+            plt.show()
 
-        for i in range(len(rx) - 1):
-            c = self.collides_strict(rx[i], ry[i], rx[i+1], ry[i+1])
-            if c:
-                print(rx[i], ry[i], rx[i+1], ry[i+1], c)
-                break
+        # for i in range(len(rx) - 1):
+        #     c = self.collides_strict(rx[i], ry[i], rx[i+1], ry[i+1])
+        #     if c:
+        #         print(rx[i], ry[i], rx[i+1], ry[i+1], c)
+        #         break
 
-        plt.show()
+        return self.nsamples if rx else -1
 
-    def sample_points(self, n_samples=N_SAMPLES):
+    def sample_points(self, n_samples):
         xmax = self.cspace.xmax
         ymax = self.cspace.ymax
         minx = self.cspace.xmin
@@ -117,7 +160,8 @@ class PRM:
     def filter_samples(self, sample_x, sample_y):
         samples = zip(sample_x, sample_y)
         samples = list(filter(lambda p: not self.cspace.collides(p[0], p[1], self.rr), samples))
-        return zip(*samples)
+        sample_x, sample_y = zip(*samples)
+        return list(sample_x), list(sample_y)
 
     def generate_roadmap(self, sample_x, sample_y):
         roadmap = []
@@ -200,7 +244,7 @@ class PRM:
         
         while True:
             if not openset:
-                print("Cannot find path")
+                # print("Cannot find path")
                 path_found = False
                 break
 
@@ -213,7 +257,7 @@ class PRM:
                 # plt.pause(0.001)
 
             if c_id == (len(roadmap) - 1):
-                print("goal is found!")
+                # print("goal is found!")
                 ngoal.pind = current.pind
                 ngoal.cost = current.cost
                 break
@@ -268,20 +312,36 @@ def main():
     # random.seed(215051673)
     # random.seed(591224707)
     # random.seed(899706384)
-    random.seed(435534417)
+    # random.seed(435534417)
 
     # start and goal position
     # sx = 10.0  # [m]
     # sy = 10.0  # [m]
     # gx = 50.0  # [m]
     # gy = 50.0  # [m]
-    robot_size = 1.0 # [m]
+    robot_size = 0.5 # [m]
 
-    cspace = generate_random_cspace()
-    sx, sy = cspace.make_start(robot_size)
-    gx, gy = cspace.make_goal(robot_size)
-    prm = PRM(cspace, sx, sy, gx, gy, robot_size)
-    prm.plan()
+    obstacles = [(30, 35, 28),
+                 (0, 0, 15),
+                 (60, 0, 15)]
+    params = generate_params(obstacles, 0, 60, 60, 60, robot_size)
+
+    # obstacles = [
+    #     (20, 20, 4),
+    #     (12, 24, 8),
+    #     (12, 32, 8),
+    #     (12, 40, 8),
+    #     (28, 20, 8),
+    #     (36, 20, 8),
+    #     (32, 40, 4)
+    # ] 
+    # params = generate_params(obstacles, 20, 10, 23, 30, robot_size)
+
+    # params = generate_random_params(rr=robot_size)
+    prm = PRM(*params)
+    n = prm.plan()
+    # n = prm.plan_iter(show_animation=True)
+    print(n)
 
 if __name__ == '__main__':
     main()
